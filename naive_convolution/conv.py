@@ -26,14 +26,6 @@ import time
 if __name__ == "__main__":
     j = json.loads(sys.stdin.read())
 
-    # EXPERIMENT_NAME = "windowed_EachDevice-200k_batch-512_learningRate-0.0001_stride-20_distances-26_epochs-50_patience-50"
-    # SOURCE_DATASET_PATH = os.path.join(utils.get_datasets_base_path(), "automated_windower", "windowed_EachDevice-200k_batch-100_stride-20_distances-26")
-    # LEARNING_RATE = 0.0001
-    # ORIGINAL_BATCH_SIZE=100
-    # DESIRED_BATCH_SIZE=256
-    # EPOCHS  = 50
-    # PATIENCE = 50
-
     EXPERIMENT_NAME = j["experiment_name"]
     SOURCE_DATASET_PATH = j["source_dataset_path"]
     LEARNING_RATE = j["learning_rate"]
@@ -190,8 +182,9 @@ if __name__ == "__main__":
 
     results_csv_path="./results.csv"
 
-    with open("./experiment_name", "w") as f:
-        f.write(EXPERIMENT_NAME)
+    with open("./details.txt", "w") as f:
+        f.write("experiment_name {}\n".format(EXPERIMENT_NAME))
+        f.write("epochs_trained {}\n".format(len(history.history["loss"])))
 
     with open(results_csv_path, "w") as f:
         f.write("distance,val_loss,val_accuracy,test_loss,test_accuracy")
@@ -252,5 +245,5 @@ if __name__ == "__main__":
 
     end_time = time.time()
 
-    with open("RESULTS", "a") as f:
+    with open(results_csv_path, "a") as f:
         f.write("total time seconds: {}\n".format(end_time-start_time))
