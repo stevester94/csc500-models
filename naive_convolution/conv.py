@@ -228,7 +228,7 @@ if __name__ == "__main__":
             verbose=1,
         )
 
-        with open("RESULTS", "a") as f:
+        with open(results_csv_path, "a") as f:
             f.write("{},{},{},{},{}\n".format(distance, val_results[0], val_results[1], test_results[0], test_results[1]))
 
         print("Calculate the confusion matrix")

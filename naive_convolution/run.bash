@@ -2,15 +2,20 @@
 set -eou pipefail
 
 source_dataset_base_path="$CSC500_ROOT_PATH/datasets/automated_windower"
-results_base_path="$CSC500_ROOT_PATH/csc500-past-runs/naive_convolution/"
+results_base_path="$CSC500_ROOT_PATH/csc500-past-runs/oracle_naive_convolution/"
 
 original_batch_size=100
 patience=10
 
-for desired_batch_size in 512; do
-for epochs in 100; do
+# for desired_batch_size in 1024; do
+# for epochs in 500; do
+# for learning_rate in 0.0001; do
+# for distance in 50 56 14; do # distance 4 is busted
+
+for desired_batch_size in 1024; do
+for epochs in 2; do
 for learning_rate in 0.0001; do
-for distance in 50; do # distance 4 is busted
+for distance in 14; do # distance 4 is busted
     experiment_name=naive_convolution-${distance}_learningRate-${learning_rate}_batch-${desired_batch_size}_epochs-${epochs}_patience-$patience
     echo "Begin $experiment_name" | tee logs
     rm -rf best_weights model_checkpoint *png checkpoint logs experiment_name results.csv training_log.csv
