@@ -13,7 +13,7 @@ patience=10
 # for epochs in 2; do
 # for learning_rate in 0.0001; do
 # for distance in 14; do # distance 4 is busted
-for desired_batch_size in 1024; do
+for desired_batch_size in 512; do
 for epochs in 500; do
 for learning_rate in 0.0001; do
 for distance in 50 56 14; do
@@ -32,8 +32,8 @@ for distance in 50 56 14; do
     }
 EOF
 
-    cp -R . $results_base_path/$experiment_name
-    rm $results_base_path/$experiment_name/.gitignore
+    #cp -R . $results_base_path/$experiment_name
+    #rm $results_base_path/$experiment_name/.gitignore
 
 done
 done

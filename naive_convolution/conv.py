@@ -49,27 +49,41 @@ def apply_dataset_pipeline(datasets):
     val_ds = datasets["val_ds"]
     test_ds = datasets["test_ds"]
 
-    train_ds = train_ds.map(
-        lambda x: (x["IQ"],tf.one_hot(x["serial_number_id"], RANGE)),
-        num_parallel_calls=tf.data.AUTOTUNE,
-        deterministic=True
-    )
+    # train_ds = train_ds.map(
+    #     lambda x: (x["IQ"],tf.one_hot(x["serial_number_id"], RANGE)),
+    #     num_parallel_calls=tf.data.AUTOTUNE,
+    #     deterministic=True
+    # )
 
-    val_ds = val_ds.map(
-        lambda x: (x["IQ"],tf.one_hot(x["serial_number_id"], RANGE)),
-        num_parallel_calls=tf.data.AUTOTUNE,
-        deterministic=True
-    )
+    # val_ds = val_ds.map(
+    #     lambda x: (x["IQ"],tf.one_hot(x["serial_number_id"], RANGE)),
+    #     num_parallel_calls=tf.data.AUTOTUNE,
+    #     deterministic=True
+    # )
 
-    test_ds = test_ds.map(
-        lambda x: (x["IQ"],tf.one_hot(x["serial_number_id"], RANGE)),
-        num_parallel_calls=tf.data.AUTOTUNE,
-        deterministic=True
-    )
+    # test_ds = test_ds.map(
+    #     lambda x: (x["IQ"],tf.one_hot(x["serial_number_id"], RANGE)),
+    #     num_parallel_calls=tf.data.AUTOTUNE,
+    #     deterministic=True
+    # )
+
+    train_ds = train_ds.map(lambda d: (d["IQ"], d["serial_number_id"]))
+    val_ds = val_ds.map(lambda d: (d["IQ"], d["serial_number_id"]))
+    test_ds = test_ds.map(lambda d: (d["IQ"], d["serial_number_id"]))
 
     train_ds = train_ds.unbatch()
     val_ds = val_ds.unbatch()
     test_ds = test_ds.unbatch()
+
+    train_ds = train_ds.map(
+        lambda x,y: (tf.ones([2,128], dtype=tf.double)*tf.cast(y, dtype=tf.double), tf.one_hot(y, RANGE))
+    )
+    val_ds = val_ds.map(
+        lambda x,y: (tf.ones([2,128], dtype=tf.double)*tf.cast(y, dtype=tf.double), tf.one_hot(y, RANGE))
+    )
+    test_ds = test_ds.map(
+        lambda x,y: (tf.ones([2,128], dtype=tf.double)*tf.cast(y, dtype=tf.double), tf.one_hot(y, RANGE))
+    )
 
     train_ds = train_ds.shuffle(100 * ORIGINAL_BATCH_SIZE, reshuffle_each_iteration=True)
     
