@@ -23,24 +23,25 @@ import json
 import sys
 import time
 
-# if __name__ == "__main__":
-#     j = json.loads(sys.stdin.read())
+if __name__ == "__main__":
+    j = json.loads(sys.stdin.read())
 
-#     EXPERIMENT_NAME = j["experiment_name"]
-#     SOURCE_DATASET_PATH = j["source_dataset_path"]
-#     LEARNING_RATE = j["learning_rate"]
-#     ORIGINAL_BATCH_SIZE = j["original_batch_size"]
-#     DESIRED_BATCH_SIZE = j["desired_batch_size"]
-#     EPOCHS = j["epochs"]
-#     PATIENCE = j["patience"]
+    EXPERIMENT_NAME = j["experiment_name"]
+    SOURCE_DATASET_PATH = j["source_dataset_path"]
+    LEARNING_RATE = j["learning_rate"]
+    ORIGINAL_BATCH_SIZE = j["original_batch_size"]
+    DESIRED_BATCH_SIZE = j["desired_batch_size"]
+    EPOCHS = j["epochs"]
+    PATIENCE = j["patience"]
 
-EXPERIMENT_NAME = "demo-that-CIDA-is-flawed"
-SOURCE_DATASET_PATH = utils.get_datasets_base_path() + "/automated_windower/windowed_EachDevice-200k_batch-100_stride-20_distances-2.8.14.20.26.32/"
-LEARNING_RATE = 0.0001
-ORIGINAL_BATCH_SIZE = 100
-DESIRED_BATCH_SIZE = 128
-EPOCHS = 300
-PATIENCE = 10
+# EXPERIMENT_NAME = "demo-that-CIDA-is-flawed"
+# SOURCE_DATASET_PATH = utils.get_datasets_base_path() + "/automated_windower/windowed_EachDevice-200k_batch-100_stride-20_distances-2.8.14.20.26.32/"
+# LEARNING_RATE = 0.0001
+# ORIGINAL_BATCH_SIZE = 100
+# # DESIRED_BATCH_SIZE = 128
+# DESIRED_BATCH_SIZE = 1024
+# EPOCHS = 3
+# PATIENCE = 10
 
 def set_seeds(seed):
     os.environ['PYTHONHASHSEED'] = str(seed)
@@ -57,22 +58,21 @@ def apply_dataset_pipeline(datasets):
     test_ds = datasets["test_ds"]
 
     train_ds = train_ds.map(
-        lambda x: (x["IQ"],tf.one_hot(x["serial_number_id"], RANGE)),
+        lambda x: ((x["IQ"], x["distance_feet"]),tf.one_hot(x["serial_number_id"], RANGE)),
         num_parallel_calls=tf.data.AUTOTUNE,
         deterministic=True
     )
-
     val_ds = val_ds.map(
-        lambda x: (x["IQ"],tf.one_hot(x["serial_number_id"], RANGE)),
+        lambda x: ((x["IQ"], x["distance_feet"]),tf.one_hot(x["serial_number_id"], RANGE)),
+        num_parallel_calls=tf.data.AUTOTUNE,
+        deterministic=True
+    )
+    test_ds = test_ds.map(
+        lambda x: ((x["IQ"], x["distance_feet"]),tf.one_hot(x["serial_number_id"], RANGE)),
         num_parallel_calls=tf.data.AUTOTUNE,
         deterministic=True
     )
 
-    test_ds = test_ds.map(
-        lambda x: (x["IQ"],tf.one_hot(x["serial_number_id"], RANGE)),
-        num_parallel_calls=tf.data.AUTOTUNE,
-        deterministic=True
-    )
 
     train_ds = train_ds.unbatch()
     val_ds = val_ds.unbatch()
@@ -112,7 +112,10 @@ if __name__ == "__main__":
 
     train_ds, val_ds, test_ds = get_shuffled_and_windowed_from_pregen_ds()
 
-    inputs  = keras.Input(shape=(2,ORIGINAL_PAPER_SAMPLES_PER_CHUNK))
+    input_x  = keras.Input(shape=(2,ORIGINAL_PAPER_SAMPLES_PER_CHUNK))
+    input_t  = keras.Input(shape=())
+
+    t = keras.layers.Reshape((1,))(input_t)
 
     x = keras.layers.Convolution1D(
         filters=50,
@@ -122,7 +125,7 @@ if __name__ == "__main__":
         kernel_initializer='glorot_uniform',
         data_format="channels_first",
         name="classifier_conv1d_1"
-    )(inputs)
+    )(input_x)
 
     x = keras.layers.Convolution1D(
         filters=50,
@@ -137,6 +140,8 @@ if __name__ == "__main__":
     x = keras.layers.Dropout(DROPOUT)(x)
 
     x = keras.layers.Flatten(name="classifier_flatten")(x)
+
+    x = keras.layers.Concatenate(name="classifier_concat_x_with_t")([x, t])
 
     x = keras.layers.Dense(
             units=256,
@@ -186,7 +191,7 @@ if __name__ == "__main__":
 
     outputs = keras.layers.Dense(RANGE, activation="softmax")(x)
 
-    model = keras.Model(inputs=inputs, outputs=outputs, name="steves_model")
+    model = keras.Model(inputs=[input_x, input_t], outputs=outputs, name="steves_model")
     model.summary()
 
     model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE),
@@ -222,14 +227,14 @@ if __name__ == "__main__":
         f.write("epochs_trained {}\n".format(len(history.history["loss"])))
 
     with open(results_csv_path, "w") as f:
-        f.write("distance,val_loss,val_accuracy,test_loss,test_accuracy")
+        f.write("distance,val_loss,val_accuracy,test_loss,test_accuracy\n")
         
 
     print("Loading best weights...")
     model.load_weights("./best_weights/weights.ckpt")
 
     print("Analyze the model...")
-    for distance in ALL_DISTANCES_FEET:
+    for distance in ALL_DISTANCES_FEET + ["2.8.14.20.26.32"]:
         print("Distance", distance)
 
         # Distance 4 would not generate a windowed dataset for some reason
@@ -273,8 +278,10 @@ if __name__ == "__main__":
                 total_confusion = confusion
             else:
                 total_confusion = total_confusion + confusion
-
-        save_confusion_matrix(confusion, path="confusion_distance-{}".format(distance))
+        if distance == "2.8.14.20.26.32":
+            save_confusion_matrix(confusion, path="confusion_distance-2_8_14_20_26_32.png")
+        else:
+            save_confusion_matrix(confusion, path="confusion_distance-{}".format(distance))
 
     save_loss_curve(history)
 
