@@ -1,0 +1,9 @@
+best_weights
+model_checkpoint
+*png
+checkpoint
+logs
+experiment_name
+results.csv
+training_log.csv
+details.txt
