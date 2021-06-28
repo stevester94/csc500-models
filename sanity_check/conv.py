@@ -236,7 +236,8 @@ if __name__ == "__main__":
     model.load_weights("./best_weights/weights.ckpt")
 
     print("Analyze the model...")
-    for distance in ALL_DISTANCES_FEET + ["2.8.14.20.26.32"]:
+    # for distance in ALL_DISTANCES_FEET + ["2.8.14.20.26.32"]:
+    for distance in ["2.8.14.20.26.32"]:
         print("Distance", distance)
 
         # Distance 4 would not generate a windowed dataset for some reason
@@ -280,10 +281,8 @@ if __name__ == "__main__":
                 total_confusion = confusion
             else:
                 total_confusion = total_confusion + confusion
-        if distance == "2.8.14.20.26.32":
-            save_confusion_matrix(confusion, path="confusion_distance-2_8_14_20_26_32.png")
-        else:
-            save_confusion_matrix(confusion, path="confusion_distance-{}".format(distance))
+
+        save_confusion_matrix(confusion, path="confusion_distance-{}".format(distance.replace(".", "_")))
 
     save_loss_curve(history)
 
