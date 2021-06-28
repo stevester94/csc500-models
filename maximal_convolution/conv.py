@@ -141,7 +141,7 @@ if __name__ == "__main__":
 
     x = keras.layers.Flatten(name="classifier_flatten")(x)
 
-    x = keras.layers.Concatenate(name="classifier_concat_x_with_t")([x, t])
+    # x = keras.layers.Concatenate(name="classifier_concat_x_with_t")([x, t])
 
     x = keras.layers.Dense(
             units=256,
