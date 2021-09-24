@@ -66,23 +66,24 @@ class DiscConv(nn.Module):
         return self.net(x)
 
 class EncoderSTN(nn.Module):
-    def __init__(self, opt):
+    def __init__(self):
         super(EncoderSTN, self).__init__()
 
         nh = 256
+        nz = 100
+        DROPOUT = 0.2
+        DIM_DOMAIN = 1
 
         self.fc_stn = nn.Sequential(
-            nn.Linear(opt.dim_domain + 28 * 28, nh), nn.LeakyReLU(0.2), nn.Dropout(opt.dropout),
-            nn.Linear(nh, nh), nn.BatchNorm1d(nh), nn.LeakyReLU(0.2), nn.Dropout(opt.dropout),
+            nn.Linear(DIM_DOMAIN + 28 * 28, nh), nn.LeakyReLU(0.2), nn.Dropout(DROPOUT),
+            nn.Linear(nh, nh), nn.BatchNorm1d(nh), nn.LeakyReLU(0.2), nn.Dropout(DROPOUT),
             nn.Linear(nh, 3),
         )
 
-        nz = opt.nz
-
         self.conv = nn.Sequential(
-            nn.Conv2d(1, nh, 3, 2, 1), nn.BatchNorm2d(nh), nn.ReLU(True), nn.Dropout(opt.dropout),  # 14 x 14
-            nn.Conv2d(nh, nh, 3, 2, 1), nn.BatchNorm2d(nh), nn.ReLU(True), nn.Dropout(opt.dropout),  # 7 x 7
-            nn.Conv2d(nh, nh, 3, 2, 1), nn.BatchNorm2d(nh), nn.ReLU(True), nn.Dropout(opt.dropout),  # 4 x 4
+            nn.Conv2d(1, nh, 3, 2, 1), nn.BatchNorm2d(nh), nn.ReLU(True), nn.Dropout(DROPOUT),  # 14 x 14
+            nn.Conv2d(nh, nh, 3, 2, 1), nn.BatchNorm2d(nh), nn.ReLU(True), nn.Dropout(DROPOUT),  # 7 x 7
+            nn.Conv2d(nh, nh, 3, 2, 1), nn.BatchNorm2d(nh), nn.ReLU(True), nn.Dropout(DROPOUT),  # 4 x 4
             nn.Conv2d(nh, nz, 4, 1, 0), nn.ReLU(True),  # 1 x 1
         )
 
@@ -123,17 +124,49 @@ class EncoderSTN(nn.Module):
         return F.log_softmax(y, dim=1), x, z
 
 
+from torch.autograd import Function
+
+
+class ReverseLayerF(Function):
+
+    @staticmethod
+    def forward(ctx, x, alpha):
+        ctx.alpha = alpha
+
+        return x.view_as(x)
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        output = grad_output.neg() * ctx.alpha
+
+        return output, None
+
 class CIDA_Images_CNN_Model(nn.Module):
     def __init__(self,
         num_output_classes):
         super(CIDA_Images_CNN_Model, self).__init__()
 
-        self.netE = EncoderSTN(opt)
+        nz = 100
+        dim_domain = 1
+
+        self.netE = EncoderSTN()
         self.init_weight(self.netE)
-        self.netD = DiscConv(nin=opt.nz, nout=opt.dim_domain)
+        self.netD = DiscConv(nz, nout=dim_domain)
+
+    def init_weight(self, net=None):
+        if net is None:
+            net = self
+        for m in net.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, mean=0, std=0.01)
+                nn.init.constant_(m.bias, val=0)
 
 
-    def forward(self, x):
-        conv_result = self.conv(x)
-        y_hat = self.dense(conv_result)
-        return y_hat
+    def forward(self, x, t, alpha):
+        y_hat, _, z = self.netE(x,t)
+
+        reverse_z = ReverseLayerF.apply(z, alpha)
+
+        t_hat = self.netD(reverse_z)
+
+        return y_hat, t_hat
