@@ -2,7 +2,7 @@
 
 import torch.nn as nn
 import torch
-import torch.functional as F
+import torch.nn.functional as F
 
 
 
@@ -95,8 +95,12 @@ class EncoderSTN(nn.Module):
         )
 
     def stn(self, x, u):
-        # A_vec = self.fc_stn(u)
-        A_vec = self.fc_stn(torch.cat([u, x.reshape(-1, 28 * 28)], 1))
+        # SM: Had to reshape u because the original code assumed it as in a -1,1 tensor
+        reshaped_u = u.reshape(-1,1)
+        reshaped_x = x.reshape(-1, 28 * 28)
+        A_vec = self.fc_stn(torch.cat([reshaped_u, reshaped_x], 1))
+
+
         A = convert_Avec_to_A(A_vec)
         _, evs = torch.symeig(A, eigenvectors=True)
         tcos, tsin = evs[:, 0:1, 0:1], evs[:, 1:2, 0:1]
@@ -163,10 +167,16 @@ class CIDA_Images_CNN_Model(nn.Module):
 
 
     def forward(self, x, t, alpha):
+
+        # print(x)
+        # print(t)
+        # print(alpha)
+
         y_hat, _, z = self.netE(x,t)
 
         reverse_z = ReverseLayerF.apply(z, alpha)
 
         t_hat = self.netD(reverse_z)
+        t_hat = t_hat.reshape(-1)
 
         return y_hat, t_hat
