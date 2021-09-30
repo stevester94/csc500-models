@@ -257,8 +257,11 @@ class CIDA_Images_CNN_Model(nn.Module):
 
         return learn_results
     
-    def test(self, x,y,u):
-        pass
+    def predict(self, x,u):
+        f, _, e = self.netE(x, u)
+        d = self.netD(e).reshape(-1)
+
+        return f,d
     # def learn(self, x,y,u,s, alpha, domain_only:bool):
     #     """
     #     u is the domain vector
