@@ -184,12 +184,12 @@ class CIDA_Images_CNN_Model(nn.Module):
                 nn.init.constant_(m.bias, val=0)
 
 
-    def forward(self, x, u):
-        y_hat, _, z = self.netE(x,u)
-        u_hat = self.netD(z)
-        u_hat = u_hat.reshape(-1)
+    # def forward(self, x, u):
+    #     y_hat, _, z = self.netE(x,u)
+    #     u_hat = self.netD(z)
+    #     u_hat = u_hat.reshape(-1)
 
-        return y_hat, u_hat
+    #     return y_hat, u_hat
 
     def set_requires_grad(self, nets, requires_grad=False):
         if not isinstance(nets, list):
@@ -199,45 +199,114 @@ class CIDA_Images_CNN_Model(nn.Module):
                 for param in net.parameters():
                     param.requires_grad = requires_grad
 
-    def learn(self, x,y,u, alpha, domain_only:bool):
-        """
-        returns a dict of
-        {
-            label_loss:float, # if domain_only==False
-            domain_loss:float
-        }
-        """
+    def forward(self):
+        self.f, self.x_align, self.e = self.netE(self.x, self.u)
+        self.g = torch.argmax(self.f.detach(), dim=1)
 
-        # Do domain's loss first, it is straight forward
-        y_hat, u_hat = self.forward(x,u)
-        descriminator_loss = self.domain_loss_object(u_hat, u)
+    def backward_G(self):
+        self.d = self.netD(self.e).reshape(-1) # SM: Flatten it
+
+        E_gan_src = F.mse_loss(self.d[self.is_source == 1], self.u[self.is_source == 1])
+        E_gan_tgt = F.mse_loss(self.d[self.is_source == 0], self.u[self.is_source == 0])
+        self.loss_E_gan = - (E_gan_src + E_gan_tgt) / 2
+
+        self.y_source = self.y[self.is_source == 1]
+        self.f_source = self.f[self.is_source == 1]
+        self.loss_E_pred = F.nll_loss(self.f_source, self.y_source)
+
+        self.loss_E = self.loss_E_gan * self.lambda_gan + self.loss_E_pred
+        self.loss_E.backward()
+
+    def backward_D(self):
+        self.d = self.netD(self.e.detach()).reshape(-1) # SM: Flatten it
+
+        D_src = F.mse_loss(self.d[self.is_source == 1], self.u[self.is_source == 1])
+        D_tgt = F.mse_loss(self.d[self.is_source == 0], self.u[self.is_source == 0])
+        self.loss_D = (D_src + D_tgt) / 2
+        self.loss_D.backward()
+
+        self.D_src = D_src
+        self.D_tgt = D_tgt
+
+    def optimize_parameters(self):
+        self.forward()
+        # update D
         self.set_requires_grad(self.netD, True)
         self.optimizer_D.zero_grad()
-        descriminator_loss.backward()
+        self.backward_D()
         self.optimizer_D.step()
-
-        # Do encoder and potentially predictor. Note the negation of the descriminator loss
-        y_hat, u_hat = self.forward(x,u) # Yeah it's dumb but I can't find an easy way to train the two nets separately without this
-        encoder_loss = - alpha * self.domain_loss_object(u_hat, u)
-
-
-        if not domain_only:
-            label_loss = self.label_loss_object(y_hat, y)
-            encoder_loss += label_loss
-
-        # TODO: Disable Encoder Learning
+        # update G
         self.set_requires_grad(self.netD, False)
         self.optimizer_G.zero_grad()
-        encoder_loss.backward()
+        self.backward_G()
         self.optimizer_G.step()
 
+    def learn(self, x,y,u, is_source, alpha):
+        self.x = x
+        self.y = y
+        self.u = u.float()
+        self.is_source = is_source
+        self.lambda_gan = alpha
 
-        if domain_only:
-            return {
-                "domain_loss": descriminator_loss
-            }
-        else:
-            return {
-                "domain_loss": descriminator_loss,
-                "label_loss": label_loss
-            }
+        self.optimize_parameters()
+
+        learn_results = {}
+        learn_results["source_label_loss"] = self.loss_E_pred
+        learn_results["source_domain_loss"] = self.D_src
+        learn_results["target_domain_loss"] = self.D_tgt
+
+        return learn_results
+    
+    def test(self, x,y,u):
+        pass
+    # def learn(self, x,y,u,s, alpha, domain_only:bool):
+    #     """
+    #     u is the domain vector
+    #     s is the "is source?" vector
+    #     """
+
+    #     """
+    #     returns a dict of
+    #     {
+    #         label_loss:float, # if domain_only==False
+    #         domain_loss:float
+    #     }
+    #     """
+
+    #     x_src = x[s]
+    #     y_src = y[s]
+    #     u_src = u[s]
+
+    #     # Do domain's loss first, it is straight forward
+    #     y_hat_src, u_hat_src = self.forward(x_src,u_src)
+    #     descriminator_loss = self.domain_loss_object(u_hat, u_src)
+    #     self.set_requires_grad(self.netD, True)
+    #     self.optimizer_D.zero_grad()
+    #     descriminator_loss.backward()
+    #     self.optimizer_D.step()
+
+    #     # Do encoder and potentially predictor. Note the negation of the descriminator loss
+    #     y_hat, u_hat = self.forward(x,u) # Yeah it's dumb but I can't find an easy way to train the two nets separately without this
+    #     encoder_loss = - alpha * self.domain_loss_object(u_hat, u)
+
+
+    #     if not domain_only:
+    #         label_loss = self.label_loss_object(y_hat, y)
+    #         encoder_loss += label_loss
+
+    #     # TODO: Disable Encoder Learning
+    #     self.set_requires_grad(self.netD, False)
+    #     self.optimizer_G.zero_grad()
+    #     encoder_loss.backward()
+    #     self.optimizer_G.step()
+
+
+    #     if domain_only:
+    #         return {
+    #             "domain_loss": descriminator_loss
+    #         }
+    #     else:
+    #         return {
+    #             "domain_loss": descriminator_loss,
+    #             "label_loss": label_loss
+    #         }
