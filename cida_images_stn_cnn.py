@@ -102,9 +102,6 @@ class EncoderSTN(nn.Module):
         reshaped_x = x.reshape(-1, 28 * 28)
         A_vec = self.fc_stn(torch.cat([reshaped_u, reshaped_x], 1))
 
-        print(reshaped_x.size())
-        sys.exit(1)
-
         A = convert_Avec_to_A(A_vec)
         _, evs = torch.symeig(A, eigenvectors=True)
         tcos, tsin = evs[:, 0:1, 0:1], evs[:, 1:2, 0:1]
@@ -187,6 +184,7 @@ class CIDA_Images_CNN_Model(nn.Module):
 
 
     def forward(self, x, u):
+        u = u.float()
         y_hat, _, z = self.netE(x,u)
         u_hat = self.netD(z)
         u_hat = u_hat.reshape(-1)
@@ -211,6 +209,8 @@ class CIDA_Images_CNN_Model(nn.Module):
         """
 
         # Do domain's loss first, it is straight forward
+        u = u.float()
+
         y_hat, u_hat = self.forward(x,u)
         descriminator_loss = self.domain_loss_object(u_hat, u)
         self.set_requires_grad(self.netD, True)

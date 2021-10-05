@@ -38,13 +38,10 @@ class DiscConv(nn.Module):
         # )
 
         self.net = nn.Sequential(
-            nn.Linear(nin, nh), nn.ReLU(False), nn.Dropout(DROPOUT),
-            nn.Linear(nh, nh), nn.ReLU(False), nn.Dropout(DROPOUT),
-            nn.Linear(nh, nh), nn.ReLU(False), nn.Dropout(DROPOUT),
-            nn.Linear(nh, nh), nn.ReLU(False), nn.Dropout(DROPOUT),
-            nn.Linear(nh, nh), nn.ReLU(False), nn.Dropout(DROPOUT),
-            nn.Linear(nh, nh), nn.ReLU(False), nn.Dropout(DROPOUT),
-            nn.Linear(nh, 1),
+            nn.Linear(256, 100),
+            nn.BatchNorm1d(100),
+            nn.ReLU(False),
+            nn.Linear(100, 1),
         )
 
     def forward(self, x):
@@ -59,80 +56,32 @@ class Encoder(nn.Module):
         DROPOUT = 0.2
         DIM_DOMAIN = 1
 
-        # Original
-        # self.conv = nn.Sequential(
-        #     nn.Conv2d(1, nh, 3, 2, 1), nn.BatchNorm2d(nh), nn.ReLU(True), nn.Dropout(DROPOUT),  # 14 x 14
-        #     nn.Conv2d(nh, nh, 3, 2, 1), nn.BatchNorm2d(nh), nn.ReLU(True), nn.Dropout(DROPOUT),  # 7 x 7
-        #     nn.Conv2d(nh, nh, 3, 2, 1), nn.BatchNorm2d(nh), nn.ReLU(True), nn.Dropout(DROPOUT),  # 4 x 4
-        #     nn.Conv2d(nh, nz, 4, 1, 0), nn.ReLU(True),  # 1 x 1
-        # )
-
-        # self.fc_pred = nn.Sequential(
-        #     nn.Conv2d(nz, nh, 1, 1, 0), nn.BatchNorm2d(nh), nn.ReLU(True),
-        #     nn.Conv2d(nh, nh, 1, 1, 0), nn.BatchNorm2d(nh), nn.ReLU(True),
-        #     nnSqueeze(),
-        #     nn.Linear(nh, 10),
-        # )
-
-        # My abomination
-        # self.conv = nn.Sequential(
-        #     nn.Conv1d(in_channels=2, out_channels=nh, kernel_size=7, stride=1),
-        #         nn.BatchNorm1d(nh), nn.ReLU(True), nn.Dropout(DROPOUT),
-        #     nn.Conv1d(in_channels=nh, out_channels=nh, kernel_size=7, stride=1),
-        #         nn.BatchNorm1d(nh), nn.ReLU(True), nn.Dropout(DROPOUT),
-        #     nn.Conv1d(in_channels=nh, out_channels=nh, kernel_size=7, stride=1),
-        #         nn.BatchNorm1d(nh), nn.ReLU(True), nn.Dropout(DROPOUT),
-        #     nn.Conv1d(nh, nz, 4, 1, 0), nn.ReLU(True),
-        #     nn.Flatten()
-        # )
-
-        # self.domain_net = nn.Sequential(
-        #     # nn.Linear(1,nh), nn.BatchNorm1d(nh), nn.ReLU(True), nn.Dropout(DROPOUT),
-        #     # nn.Linear(nh,nh), nn.BatchNorm1d(nh), nn.ReLU(True), nn.Dropout(DROPOUT),
-        #     # nn.Linear(nh,nz), nn.BatchNorm1d(nh), nn.ReLU(True), nn.Dropout(DROPOUT),
-        #     nn.Linear(1,nh), nn.ReLU(True), nn.Dropout(DROPOUT),
-        #     nn.Linear(nh,nh), nn.ReLU(True), nn.Dropout(DROPOUT),
-        #     nn.Linear(nh,nz), nn.ReLU(True), nn.Dropout(DROPOUT),
-        # )
-
-        # self.fc_pred = nn.Sequential(
-        #     nn.Linear(10700+100,nh), nn.BatchNorm1d(nh), nn.ReLU(True), nn.Dropout(DROPOUT),
-        #     nn.Linear(nh,nh), nn.BatchNorm1d(nh), nn.ReLU(True), nn.Dropout(DROPOUT),
-        #     nn.Linear(nh,nh), nn.BatchNorm1d(nh), nn.ReLU(True), nn.Dropout(DROPOUT),
-        #     nn.Linear(nh,10)
-        # )
-
-        # Ripped from DANN-CIDA
         self.conv = nn.Sequential(
             nn.Conv1d(in_channels=2, out_channels=50, kernel_size=7, stride=1),
-            nn.ReLU(True), # Optionally do the operation in place,
+            nn.ReLU(False),
             nn.Conv1d(in_channels=50, out_channels=50, kernel_size=7, stride=2),
-            nn.ReLU(True),
+            nn.ReLU(False),
             nn.Dropout(),
-            nn.Flatten(),
         )
 
-        NUM_DOMAIN_OUT = 40
-        self.domain_net = nn.Sequential(
-            nn.Linear(1,NUM_DOMAIN_OUT), nn.ReLU(True), nn.Dropout(DROPOUT),
-            nn.Linear(NUM_DOMAIN_OUT,NUM_DOMAIN_OUT), nn.ReLU(True), nn.Dropout(DROPOUT),
-            nn.Linear(NUM_DOMAIN_OUT,NUM_DOMAIN_OUT), nn.ReLU(True), nn.Dropout(DROPOUT),
-            nn.Linear(NUM_DOMAIN_OUT,NUM_DOMAIN_OUT), nn.ReLU(True), nn.Dropout(DROPOUT),
-        )
+        NUM_DOMAIN_OUT = 0
+        # self.domain_net = nn.Sequential(
+        #     nn.Identity()
+        # )
 
         self.merge = nn.Sequential(
-            nn.Linear(50 * 58 + NUM_DOMAIN_OUT, 80),nn.ReLU(False),nn.Dropout(),
-            nn.Linear(80, 80),nn.ReLU(False),nn.Dropout(),
-            nn.Linear(80, 80),nn.ReLU(False),nn.Dropout(),
+            nn.Linear(50 * 58 + NUM_DOMAIN_OUT, 256),
         )
 
 
         NUM_HIDDEN = 100
         self.fc_pred = nn.Sequential(
-            nn.Linear(80, NUM_HIDDEN),nn.ReLU(False),nn.Dropout(),
-            nn.Linear(NUM_HIDDEN, NUM_HIDDEN),nn.ReLU(False),nn.Dropout(),
-            nn.Linear(NUM_HIDDEN, NUM_HIDDEN),nn.ReLU(False),nn.Dropout(),
-            nn.Linear(NUM_HIDDEN, 16),
+            nn.Linear(256, 256),
+            nn.ReLU(False),
+            nn.Dropout(),
+            nn.Linear(256, 80),
+            nn.ReLU(False),
+            nn.Linear(80, 16),
         )
 
 
@@ -144,11 +93,16 @@ class Encoder(nn.Module):
         """
         # print(u)
         z_x = self.conv(x.float())
-        z_u = self.domain_net(u.reshape(-1,1).float())
+        # z_u = self.domain_net(u.reshape(-1,1).float())
 
-        z_u_concat = torch.cat((z_x, z_u), dim=1)
+        z_x = z_x.view(-1, 50 * 58)
 
-        z = self.merge(z_u_concat)
+        # u = torch.reshape(u.float(), shape=(-1, 1))
+        # z_u_concat = torch.cat((z_x,u), dim=1)
+
+        # z_u_concat = torch.cat((z_x, z_u), dim=1)
+
+        z = self.merge(z_x)
 
         y = self.fc_pred(z)
         return F.log_softmax(y, dim=1), None, z
@@ -157,7 +111,7 @@ class Encoder(nn.Module):
 
 
 
-class CIDA_RF_CNN_Model(nn.Module):
+class CIDA_RF_CNN_Model_Chapter_Two(nn.Module):
     def __init__(
             self,
             num_output_classes,
@@ -165,7 +119,7 @@ class CIDA_RF_CNN_Model(nn.Module):
             domain_loss_object,
             learning_rate
         ):
-        super(CIDA_RF_CNN_Model, self).__init__()
+        super(CIDA_RF_CNN_Model_Chapter_Two, self).__init__()
 
         self.label_loss_object = label_loss_object
         self.domain_loss_object = domain_loss_object
