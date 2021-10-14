@@ -83,7 +83,7 @@ class Configurable_CIDA(nn.Module):
                 for param in net.parameters():
                     param.requires_grad = requires_grad
 
-    def learn(self, x,y,u, alpha, domain_only:bool):
+    def learn(self, x,y,u,s, alpha):
         """
         returns a dict of
         {
@@ -104,22 +104,17 @@ class Configurable_CIDA(nn.Module):
         encoder_loss = - alpha * self.domain_loss_object(u_hat, u)
 
 
-        if not domain_only:
-            label_loss = self.label_loss_object(y_hat, y)
-            encoder_loss += label_loss
+        # TODO: The fancy s domain accounting here
+        label_loss = self.label_loss_object(y_hat[s==1], y[s==1])
+        encoder_loss += label_loss
+        # END TODO
 
         self.set_requires_grad(self.domain_net, False)
         self.non_domain_optimizer.zero_grad()
         encoder_loss.backward()
         self.non_domain_optimizer.step()
 
-
-        if domain_only:
-            return {
-                "domain_loss": descriminator_loss
-            }
-        else:
-            return {
-                "domain_loss": descriminator_loss,
-                "label_loss": label_loss
-            }
+        return {
+            "domain_loss": descriminator_loss,
+            "label_loss": label_loss
+        }
