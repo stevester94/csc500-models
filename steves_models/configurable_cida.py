@@ -42,8 +42,7 @@ class Configurable_CIDA(nn.Module):
             list(self.x_net.parameters()) + 
             list(self.u_net.parameters()) + 
             list(self.merge_net.parameters()) + 
-            list(self.class_net.parameters()) + 
-            list(self.domain_net.parameters()),
+            list(self.class_net.parameters()),
             learning_rate
         )
 
@@ -92,29 +91,49 @@ class Configurable_CIDA(nn.Module):
         }
         """
 
-        # Do domain's loss first, it is straight forward
         y_hat, u_hat = self.forward(x,u)
-        descriminator_loss = self.domain_loss_object(u_hat, u)
-        self.domain_optimizer.zero_grad()
-        descriminator_loss.backward()
-        self.domain_optimizer.step()
 
-        # Do encoder and potentially predictor. Note the negation of the descriminator loss
-        y_hat, u_hat = self.forward(x,u) # Yeah it's dumb but I can't find an easy way to train the two nets separately without this
-        encoder_loss = - alpha * self.domain_loss_object(u_hat, u)
-
-
-        # TODO: The fancy s domain accounting here
+        # Do domain's loss first, it is straight forward
+        domain_loss = self.domain_loss_object(u_hat, u)
         label_loss = self.label_loss_object(y_hat[s==1], y[s==1])
-        encoder_loss += label_loss
-        # END TODO
+
+        # Note the negation for domain loss against encoder
+        encoder_loss = label_loss
+        encoder_loss += - alpha * domain_loss
+
+        # self.set_requires_grad(self.class_net, False)
+        # self.set_requires_grad(self.domain_net, True)
+        self.non_domain_optimizer.zero_grad()
+        self.domain_optimizer.zero_grad()
+
+        self.set_requires_grad(self.domain_net, True)
+        self.set_requires_grad(self.x_net, False)
+        self.set_requires_grad(self.u_net, False)
+        self.set_requires_grad(self.merge_net, False)
+        self.set_requires_grad(self.class_net, False)
+        domain_loss.backward(retain_graph=True)
 
         self.set_requires_grad(self.domain_net, False)
-        self.non_domain_optimizer.zero_grad()
-        encoder_loss.backward()
+        self.set_requires_grad(self.x_net, True)
+        self.set_requires_grad(self.u_net, True)
+        self.set_requires_grad(self.merge_net, True)
+        self.set_requires_grad(self.class_net, True)
+        encoder_loss.backward(retain_graph=True)
+
+        self.domain_optimizer.step()
         self.non_domain_optimizer.step()
 
+            # d_dyuh = list(map(lambda p: torch.flatten(p), self.domain_net.parameters()))
+            # d_dyuh = torch.cat(d_dyuh)
+            # d_dyuh = torch.sum(d_dyuh)
+
+            # x_dyuh = list(map(lambda p: torch.flatten(p), self.x_net.parameters()))
+            # x_dyuh = torch.cat(x_dyuh)
+            # x_dyuh = torch.sum(x_dyuh)
+
+            # print(d_dyuh, x_dyuh)
+
         return {
-            "domain_loss": descriminator_loss,
+            "domain_loss": domain_loss,
             "label_loss": label_loss
         }
