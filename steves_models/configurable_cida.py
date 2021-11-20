@@ -6,6 +6,8 @@ import torch
 import torch.nn.functional as F
 import torch.optim.lr_scheduler as lr_scheduler
 
+import copy
+
 class Configurable_CIDA(nn.Module):
     def __init__(
             self,
@@ -98,8 +100,8 @@ class Configurable_CIDA(nn.Module):
         label_loss = self.label_loss_object(y_hat[s==1], y[s==1])
 
         # Note the negation for domain loss against encoder
-        encoder_loss = label_loss
-        encoder_loss += - alpha * domain_loss
+        non_domain_loss = label_loss.clone()
+        non_domain_loss += - alpha * domain_loss
 
         # self.set_requires_grad(self.class_net, False)
         # self.set_requires_grad(self.domain_net, True)
@@ -118,7 +120,7 @@ class Configurable_CIDA(nn.Module):
         self.set_requires_grad(self.u_net, True)
         self.set_requires_grad(self.merge_net, True)
         self.set_requires_grad(self.class_net, True)
-        encoder_loss.backward(retain_graph=True)
+        non_domain_loss.backward(retain_graph=True)
 
         self.domain_optimizer.step()
         self.non_domain_optimizer.step()
