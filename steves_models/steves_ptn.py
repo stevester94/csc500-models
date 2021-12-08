@@ -1,30 +1,11 @@
 from torch.utils.data import DataLoader
-from typing import Tuple
 import torch
 from torch import nn, optim
 import sys,time
 
-# BEGIN KEEP IN THIS ORDER
-# It's critical that you override this function first before importing the rest of easyfsl
-def my_compute_backbone_output_shape(backbone: nn.Module) -> Tuple[int]:
-    """ 
-    Compute the dimension of the feature space defined by a feature extractor.
-    Args:
-        backbone: feature extractor
-
-    Returns:
-        shape of the feature vector computed by the feature extractor for an instance
-
-    """
-    input_images = torch.ones((4, 2, 128))
-    output = backbone(input_images)
-
-    return tuple(output.shape[1:])
-import easyfsl.utils; easyfsl.utils.compute_backbone_output_shape = my_compute_backbone_output_shape
-from easyfsl.data_tools import EasySet, TaskSampler
-from easyfsl.methods import PrototypicalNetworks, AbstractMetaLearner
-from easyfsl.utils import sliding_average, compute_backbone_output_shape
-# END KEEP IN THIS ORDER
+# Note I am using my own version of easyfsl
+from easyfsl.methods import PrototypicalNetworks
+from easyfsl.utils import sliding_average
 
 
 class Steves_Prototypical_Network(PrototypicalNetworks):
