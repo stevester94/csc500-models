@@ -151,3 +151,28 @@ class Steves_Prototypical_Network(PrototypicalNetworks):
             )[1]
             == query_labels.cuda()
         ).sum().item(), len(query_labels), loss.detach().data
+
+    def predict_on_one_task(
+        self,
+        support_images: torch.Tensor,
+        support_labels: torch.Tensor,
+        query_images: torch.Tensor,
+        query_labels: torch.Tensor,
+    ) -> [int]:
+        """
+        Returns the predicted pseudo labels
+        """
+        self.eval()
+        with torch.no_grad():
+  
+            self.process_support_set(support_images.cuda(), support_labels.cuda())
+
+            classification_scores = self(query_images.cuda())
+            loss = self.compute_loss(classification_scores, query_labels.cuda())
+
+
+            return torch.max(
+                    classification_scores,
+                    1,
+                )[1]
+    
