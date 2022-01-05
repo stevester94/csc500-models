@@ -9,8 +9,8 @@ from easyfsl.utils import sliding_average
 
 
 class Steves_Prototypical_Network(PrototypicalNetworks):
-    def __init__(self, backbone: nn.Module) -> None:
-        super().__init__(backbone)
+    def __init__(self, backbone: nn.Module, x_shape=(2,28)) -> None:
+        super().__init__(backbone, x_shape)
         self.best_validation_avg_loss = float("inf")
 
     def fit(
