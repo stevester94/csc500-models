@@ -12,7 +12,15 @@ class Steves_Prototypical_Network(PrototypicalNetworks):
     def __init__(self, backbone: nn.Module, x_shape=(2,128)) -> None:
         super().__init__(backbone, x_shape)
         self.best_validation_avg_loss = float("inf")
+        self.init_weight(self.backbone)
 
+    def init_weight(self, net=None):
+        if net is None:
+            net = self
+        for m in net.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, mean=0, std=0.01)
+                nn.init.constant_(m.bias, val=0)
     def fit(
         self,
         train_loader: DataLoader,
