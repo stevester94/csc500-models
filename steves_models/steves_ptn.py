@@ -9,10 +9,11 @@ from easyfsl.utils import sliding_average
 
 
 class Steves_Prototypical_Network(PrototypicalNetworks):
-    def __init__(self, backbone: nn.Module, x_shape=(2,128)) -> None:
-        super().__init__(backbone, x_shape)
+    def __init__(self, backbone: nn.Module, device:str, x_shape=(2,128)) -> None:
+        super().__init__(backbone, device, x_shape)
         self.best_validation_avg_loss = float("inf")
         self.init_weight(self.backbone)
+
 
     def init_weight(self, net=None):
         if net is None:
@@ -146,10 +147,10 @@ class Steves_Prototypical_Network(PrototypicalNetworks):
         Returns the number of correct predictions of query labels, and the total number of
         predictions.
         """
-        self.process_support_set(support_images.cuda(), support_labels.cuda())
+        self.process_support_set(support_images.to(self.device), support_labels.to(self.device))
 
-        classification_scores = self(query_images.cuda())
-        loss = self.compute_loss(classification_scores, query_labels.cuda())
+        classification_scores = self(query_images.to(self.device))
+        loss = self.compute_loss(classification_scores, query_labels.to(self.device))
 
 
         return (
@@ -157,7 +158,7 @@ class Steves_Prototypical_Network(PrototypicalNetworks):
                 classification_scores,
                 1,
             )[1]
-            == query_labels.cuda()
+            == query_labels.to(self.device)
         ).sum().item(), len(query_labels), loss.detach().data
 
     def predict_on_one_task(
@@ -173,10 +174,10 @@ class Steves_Prototypical_Network(PrototypicalNetworks):
         self.eval()
         with torch.no_grad():
   
-            self.process_support_set(support_images.cuda(), support_labels.cuda())
+            self.process_support_set(support_images.to(self.device), support_labels.to(self.device))
 
-            classification_scores = self(query_images.cuda())
-            loss = self.compute_loss(classification_scores, query_labels.cuda())
+            classification_scores = self(query_images.to(self.device))
+            loss = self.compute_loss(classification_scores, query_labels.to(self.device))
 
 
             return torch.max(
